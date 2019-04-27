@@ -17,7 +17,7 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+app.use(cookieParser('1234 - sharmi - 43221 - libin'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.options('/*', function(req, res, next) {
@@ -31,25 +31,36 @@ app.options('/*', function(req, res, next) {
 });
 
 function auth(req, res, next) {
-  var authHeader = req.headers.authorization;
-  if (!authHeader) {
-    var err = new Error('You r not authenticated No Header');
-    res.setHeader('wwww-authenticate', 'Basic');
-    err.status = 401;
-    next(err);
-    return;
+  if (!req.signedCookies.user) {
+    var authHeader = req.headers.authorization;
+    if (!authHeader) {
+      var err = new Error('You r not authenticated No Header');
+      res.setHeader('wwww-authenticate', 'Basic');
+      err.status = 401;
+      next(err);
+      return;
+    } else {
+      var auth = new Buffer.from(authHeader.split(' ')[1], 'base64')
+        .toString()
+        .split(':');
+      var user = auth[0];
+      var password = auth[1];
+      if (user === 'sharmi' && password === 'libin') {
+        res.setCookie('user', 'sharmi', { signed: true });
+        next();
+      } else {
+        var err = new Error('User Name and Password Missmatch');
+        res.setHeader('www-authenticate', 'Basic');
+        err.status = 401;
+        next(err);
+      }
+    }
   } else {
-    var auth = new Buffer.from(authHeader.split(' ')[1], 'base64')
-      .toString()
-      .split(':');
-    var user = auth[0];
-    var password = auth[1];
-    if (user === 'sharmi' && password === 'libin') {
+    if (req.signedCookies.user === 'sharmi') {
       next();
     } else {
-      var err = new Error('User Name and Password Missmatch');
-      res.setHeader('www-authenticate', 'Basic');
-      err.status = 401;
+      var err = new Error('You are not authenticated');
+      res.status = 401;
       next(err);
     }
   }
